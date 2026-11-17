@@ -14,7 +14,7 @@ window.Sync = (function(){
 
   // the sync server's address (the Worker's workers.dev address); when set,
   // nobody has to type it
-  var DEFAULT_URL = "";
+  var DEFAULT_URL = "https://card-list-sync.rstigall-4f5.workers.dev";
 
   var cfg = null, hooks = {}, running = false, again = false, timer = 0;
   var st = { state: "off", last: 0, message: null };

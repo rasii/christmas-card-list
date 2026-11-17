@@ -32,6 +32,7 @@ Edge can install it as an app from the address bar.
 | `store.js` | IndexedDB key/value store: the list and the sync settings |
 | `sync.js` | Sync: reads the list from the sync server, merges family by family (newest change wins, deletions kept), writes it back |
 | `worker/worker.js` | The sync server (a Cloudflare Worker with one R2 bucket): accounts, sync codes, one list per account |
+| `festive.js` | On opening: snowflakes down the screen (can be turned off in the menu). It can also play a few seconds of a carol from its notes, but that is switched off for now |
 | `sw.js` | Service worker: the app opens from its cache (at once, and offline); a new version installs in the background |
 | `version.js` | Version string shown in the menu; bump it on every release (it also names the offline cache) |
 | `manifest.webmanifest`, `apple-touch-icon.png`, `icon-*.png` | Home-screen name and icons |

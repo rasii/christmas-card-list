@@ -571,7 +571,10 @@
     $("addBtn").onclick = function(){ openEdit(null); };
     $("xmasBtn").onclick = openXmas;
     $("xmasLabel").textContent = "Christmas " + Data.seasonYear();
-    $("menuBtn").onclick = function(){ $("menuDlg").showModal(); };
+    function menuLabels(){
+      $("menuSnow").textContent = Festive.isOn("snow") ? "on · tap to turn off" : "off · tap to turn on";
+    }
+    $("menuBtn").onclick = function(){ menuLabels(); $("menuDlg").showModal(); };
     $("emptyImport").onclick = importOld;
     $("search").addEventListener("input", function(){ query = this.value; render(); });
 
@@ -635,6 +638,12 @@
       else if(a === "print-all") printAll();
       else if(a === "mark-year") openYear();
       else if(a === "xmas") openXmas();
+      else if(a === "toggle-snow"){
+        Festive.set("snow", !Festive.isOn("snow"));
+        if(Festive.isOn("snow")) Festive.snow();
+        toast(Festive.isOn("snow") ? "Snow will fall when the app opens." : "No snow on opening, on this device.");
+      }
+
       else if(a === "sync") openSync();
       else if(a === "backup") backup();
       else if(a === "restore") restore();
@@ -677,7 +686,7 @@
   }
 
   function start(){
-    wire(); layout(); snow();
+    wire(); layout(); snow(); Festive.open();
     Store.get("list").catch(function(){ return null; }).then(function(d){
       var early = all();                                   // anything added before the list finished loading
       setAll((d && d.records) || []);

@@ -99,6 +99,16 @@ h1 { font: 600 21px/1.2 var(--serif); letter-spacing: .01em; white-space: nowrap
 @keyframes fall { to { transform: translate(14px, 110px); opacity: 0; } }
 @media (prefers-reduced-motion: reduce) { .snow { display: none; } }
 
+/* snow down the whole screen when the app opens (festive.js) */
+#snowfall { position: fixed; inset: 0; z-index: 40; pointer-events: none; overflow: hidden; }
+#snowfall i {
+  position: absolute; top: -34px;
+  /* a six-armed flake: white with an icy blue outline, so it shows on the cream page as well as the green header */
+  background: url("data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' fill='none' stroke-linecap='round' stroke-linejoin='round'><defs><path id='a' d='M12 2v20M12 6.2 9.4 3.6M12 6.2l2.6-2.6M12 17.800 9.4 20.4M12 17.800l2.600 2.600M12 9.600 10.300 7.900M12 9.600l1.700-1.700M12 14.400l-1.700 1.700M12 14.400l1.700 1.700'/><g id='s'><use href='%23a'/><use href='%23a' transform='rotate(60 12 12)'/><use href='%23a' transform='rotate(120 12 12)'/></g></defs><use href='%23s' stroke='%234d86b8' stroke-width='3'/><use href='%23s' stroke='%23fff' stroke-width='1.300'/></svg>") center / contain no-repeat;
+  animation: snowfall linear 1 both;
+}
+@keyframes snowfall { to { transform: translate(var(--drift, 0), calc(100vh + 60px)) rotate(var(--spin, 90deg)); } }
+
 /* ---------- search and filters ---------- */
 .btn {
   border: 1px solid var(--line); background: var(--panel); border-radius: 10px;

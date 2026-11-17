@@ -1,0 +1,7 @@
+# The old Windows program and the real list (names and home addresses).
+# Never publish these.
+legacy/
+*.xml
+christmas-card-list-*.json
+christmas-cards-*.csv
+announcements.csv

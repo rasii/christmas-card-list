@@ -1,4 +1,5 @@
-// The app: the list on screen, the edit form, the menu, exports and printing.
+// The app: the list on screen, a family's page, the edit form, the This
+// Christmas screen, the menu, exports and printing.
 // Records and the functions on them are in data.js; saving is store.js;
 // syncing is sync.js.
 (function(){
@@ -17,6 +18,10 @@
   var editing = null;               // the record in the edit form
   var isNew = false, origAddr = "", addrTouched = false;
   var syncSt = { state: "off" };
+  var selId = null;                 // the family in the side panel (computers)
+  var detailId = null;              // the family in the read-only sheet (phones)
+  var allCols = false;              // computers: every column, like the Windows program
+  try{ allCols = localStorage.getItem("allcols") === "1"; }catch(e){}
 
   // ---------------- the list in memory and on the device ----------------
   function live(){ return Object.keys(recs).map(function(id){ return recs[id]; }).filter(function(r){ return !r.del; }); }
@@ -35,8 +40,13 @@
   function toast(text){
     var t = $("toast");
     t.textContent = text; t.hidden = false;
+    // shown as a popover where the browser can, so it sits above an open dialog
+    if(t.showPopover){ try{ t.hidePopover(); }catch(e){} try{ t.showPopover(); }catch(e){} }
     clearTimeout(toastTimer);
-    toastTimer = setTimeout(function(){ t.hidden = true; }, 4000);
+    toastTimer = setTimeout(function(){
+      if(t.hidePopover){ try{ t.hidePopover(); }catch(e){} }
+      t.hidden = true;
+    }, 4000);
   }
 
   // a message with OK (and Cancel when asking); resolves true on OK
@@ -74,12 +84,6 @@
     setTimeout(function(){ URL.revokeObjectURL(a.href); }, 10000);
   }
 
-  function phoneLinks(r){
-    var out = [];
-    if(r.home) out.push('<a href="tel:' + esc(r.home.replace(/[^0-9+]/g, "")) + '">' + esc(r.home) + " (H)</a>");
-    if(r.cell) out.push('<a href="tel:' + esc(r.cell.replace(/[^0-9+]/g, "")) + '">' + esc(r.cell) + " (C)</a>");
-    return out.join("");
-  }
   function phoneText(r){
     return [r.home && r.home + " (H)", r.cell && r.cell + " (C)"].filter(Boolean).join(" / ");
   }
@@ -110,55 +114,141 @@
     return list.sort(function(a, b){ return sort.dir * cmp(a, b) || Data.byName(a, b); });
   }
 
+  // the last n Christmases, oldest first: 2022..2026
+  function recent(n){ var y = Data.seasonYear(), a = []; for(var i = n - 1; i >= 0; i--) a.push(y - i); return a; }
+  function yy(y){ return "’" + String(y).slice(2); }
+  // a dot per year: filled if the family has that year
+  function dots(years, have, cls){
+    return '<span class="dots ' + (cls || "") + '" title="' + esc(Data.yearsText(have) || "never") + '">' +
+      years.map(function(y){ return "<i" + (have.indexOf(y) >= 0 ? ' class="y"' : "") + "></i>"; }).join("") + "</span>";
+  }
+  function badges(r){
+    return (r.card ? '<span class="badge card">Card</span>' : "") +
+           (r.chex ? '<span class="badge chex">Chex</span>' : "") +
+           (r.announce ? '<span class="badge announce">Announcement</span>' : "");
+  }
+  function letterOf(r){
+    var c = (r.last || r.first || "").trim().charAt(0).toUpperCase();
+    return /[A-Z]/.test(c) ? c : "#";
+  }
+  function wide(){ return window.matchMedia("(min-width: 1100px)").matches; }
+
   function render(){
-    var everyone = live(), list = shown();
+    var everyone = live(), list = shown(), y5 = recent(5);
     $("nAll").textContent = everyone.length;
     $("nCard").textContent = everyone.filter(function(r){ return r.card; }).length;
     $("nChex").textContent = everyone.filter(function(r){ return r.chex; }).length;
     $("nAnnounce").textContent = everyone.filter(function(r){ return r.announce; }).length;
 
+    // phones: cards, under a heading per letter when in name order
+    var grouped = sort.key === "name" && sort.dir > 0, letters = [], last = "";
     $("cards").innerHTML = list.map(function(r){
-      var badges = (r.card ? '<span class="badge card">Card</span>' : "") +
-                   (r.chex ? '<span class="badge chex">Chex</span>' : "") +
-                   (r.announce ? '<span class="badge announce">Announcement</span>' : "");
+      var head = "", first = "";
+      if(grouped){
+        var L = letterOf(r);
+        if(L !== last){ last = L; letters.push(L); head = '<li class="letter">' + L + "</li>"; first = ' data-first="' + L + '"'; }
+      }
       var street = esc(r.street), city = esc(Data.cityLine(r));
-      var years = [r.sent.length && "Sent " + Data.yearsShort(r.sent, 3), r.recvd.length && "Received " + Data.yearsShort(r.recvd, 3)].filter(Boolean).join(" · ");
-      return '<li data-id="' + esc(r.id) + '">' +
-        '<div class="fam-top"><span class="fam-name">' + esc(Data.fullName(r)) + "</span>" + badges + "</div>" +
+      return head + '<li class="fam" data-id="' + esc(r.id) + '"' + first + ">" +
+        '<div class="fam-top"><span class="fam-name">' + esc(Data.fullName(r)) + "</span>" + badges(r) + "</div>" +
         (r.kids ? '<div class="fam-kids">' + esc(r.kids) + "</div>" : "") +
         (street || city ? '<div class="fam-addr">' + street + (street && city ? "<br>" : "") + city + "</div>" : "") +
-        (r.home || r.cell ? '<div class="fam-phone">' + phoneLinks(r) + "</div>" : "") +
-        (years ? '<div class="fam-years">' + esc(years) + "</div>" : "") +
+        '<div class="fam-years"><span>Sent ' + dots(y5, r.sent) + "</span><span>Received " + dots(y5, r.recvd, "r") + "</span></div>" +
         "</li>";
     }).join("");
+    $("az").hidden = !(grouped && list.length > 25);
+    $("az").innerHTML = letters.map(function(L){ return '<span data-l="' + L + '">' + L + "</span>"; }).join("");
 
+    // computers: the table
     $("rows").innerHTML = list.map(function(r){
-      function years(k){ var s = Data.yearsText(r[k]); return '<td class="years" title="' + esc(s) + '">' + esc(s) + "</td>"; }
+      function years(k){ var s = Data.yearsText(r[k]); return '<td class="x years" title="' + esc(s) + '">' + esc(s) + "</td>"; }
       function tick(k){ return '<td class="tick ' + k + '">' + (r[k] ? "✓" : "") + "</td>"; }
-      return '<tr data-id="' + esc(r.id) + '">' +
+      return '<tr data-id="' + esc(r.id) + '"' + (r.id === selId ? ' class="sel"' : "") + ">" +
         '<td class="name">' + esc(Data.fullName(r)) + "</td>" +
-        '<td class="kids">' + esc(r.kids) + "</td>" +
+        '<td class="x kids">' + esc(r.kids) + "</td>" +
         '<td class="addr">' + esc(Data.fullAddress(r)) + "</td>" +
-        '<td class="nw">' + [r.home && esc(r.home) + " (H)", r.cell && esc(r.cell) + " (C)"].filter(Boolean).join("<br>") + "</td>" +
-        tick("card") + years("sent") + years("recvd") +
+        '<td class="x nw">' + [r.home && esc(r.home) + " (H)", r.cell && esc(r.cell) + " (C)"].filter(Boolean).join("<br>") + "</td>" +
+        tick("card") + '<td class="k">' + dots(y5, r.sent) + "</td>" + years("sent") +
+        '<td class="k">' + dots(y5, r.recvd, "r") + "</td>" + years("recvd") +
         tick("chex") + years("chexYears") +
         tick("announce") +
-        '<td class="nw">' + esc(Data.showDate(r.addrUpdated)) + "</td>" +
+        '<td class="x nw">' + esc(Data.showDate(r.addrUpdated)) + "</td>" +
         "</tr>";
     }).join("");
+    var span = " " + yy(y5[0]) + "–" + yy(y5[4]);
+    $("thSent").textContent = "Sent" + span; $("thRecvd").textContent = "Received" + span;
 
     Array.prototype.forEach.call(document.querySelectorAll("#grid th"), function(th){
-      th.className = (th.classList.contains("c") ? "c " : "") + (th.dataset.s === sort.key ? (sort.dir > 0 ? "up" : "down") : "");
+      th.classList.toggle("up", th.dataset.s === sort.key && sort.dir > 0);
+      th.classList.toggle("down", th.dataset.s === sort.key && sort.dir < 0);
     });
 
     var none = !list.length;
     $("empty").hidden = !none;
-    $("grid").style.display = none ? "none" : "";
+    document.querySelector(".layout").style.display = none ? "none" : "";
     if(none){
       $("emptyText").textContent = everyone.length ? "Nobody matches." : "No families yet. Add one, import the list from the Windows program, or turn on Sync (in the ⋯ menu) if the list is already on another device.";
       $("emptyImport").hidden = !!everyone.length;
     }
+    renderPanel();
     renderStatus();
+  }
+
+  // ---------------- a family, to read ----------------
+  function detailHtml(r){
+    var hist = recent(8), street = esc(r.street), city = esc(Data.cityLine(r));
+    function row(label, cls, have){
+      return '<tr class="' + cls + '"><td>' + label + "</td>" +
+        hist.map(function(y){ return "<td><i" + (have.indexOf(y) >= 0 ? ' class="y"' : "") + "></i></td>"; }).join("") + "</tr>";
+    }
+    function earlier(label, have){
+      var e = have.filter(function(y){ return y < hist[0]; });
+      return e.length ? "<div>" + label + " before " + hist[0] + ": " + esc(e.join(", ")) + "</div>" : "";
+    }
+    function tel(n){ return esc(n.replace(/[^0-9+]/g, "")); }
+    var apple = /iP(hone|ad|od)/.test(navigator.userAgent) || navigator.platform === "MacIntel";
+    var q = encodeURIComponent(Data.fullAddress(r));
+    var maps = apple ? "https://maps.apple.com/?q=" + q : "https://www.google.com/maps/search/?api=1&query=" + q;
+    var chex = r.chex || r.chexYears.length;
+    var more = earlier("Sent", r.sent) + earlier("Received", r.recvd) + (chex ? earlier("Chex", r.chexYears) : "");
+    return "<h2>" + esc(Data.fullName(r)) + "</h2>" +
+      (badges(r) ? '<div class="badges">' + badges(r) + "</div>" : "") +
+      (r.kids ? '<div class="kids">' + esc(r.kids) + "</div>" : "") +
+      (street || city
+        ? '<div class="addr">' + street + (street && city ? "<br>" : "") + city + "</div>" +
+          '<div class="row"><button class="btn small" data-act="copy">Copy address</button>' +
+          '<a class="btn small" target="_blank" rel="noopener" href="' + esc(maps) + '">Open in Maps</a></div>'
+        : '<div class="addr none">No address yet</div>') +
+      (r.home ? '<div class="row"><span class="num">' + esc(r.home) + ' <small>home</small></span><a class="btn small" href="tel:' + tel(r.home) + '">Call</a></div>' : "") +
+      (r.cell ? '<div class="row"><span class="num">' + esc(r.cell) + ' <small>cell</small></span><a class="btn small" href="tel:' + tel(r.cell) + '">Call</a><a class="btn small" href="sms:' + tel(r.cell) + '">Text</a></div>' : "") +
+      "<h3>Last " + hist.length + " Christmases</h3>" +
+      '<table class="hist"><tr><th></th>' + hist.map(function(y){ return "<th>" + yy(y) + "</th>"; }).join("") + "</tr>" +
+      row("Sent", "s", r.sent) + row("Received", "r", r.recvd) + (chex ? row("Chex", "g", r.chexYears) : "") + "</table>" +
+      (more ? '<div class="more">' + more + "</div>" : "") +
+      '<div class="foot"><small>' + (r.addrUpdated ? "Address updated " + esc(Data.showDate(r.addrUpdated)) : "") + "</small>" +
+      '<button class="btn primary" data-act="edit">Edit</button></div>';
+  }
+  // computers: in the side panel; phones (and "All columns"): in a sheet
+  function showDetail(r){
+    if(wide() && !allCols){ selId = r.id; render(); }
+    else { detailId = r.id; $("detailBody").innerHTML = detailHtml(r); $("detailDlg").showModal(); }
+  }
+  function renderPanel(){
+    var r = selId && recs[selId];
+    $("panel").innerHTML = r && !r.del ? '<div class="detail">' + detailHtml(r) + "</div>"
+      : '<p class="hint">Select a family to see its address and history.</p>';
+  }
+  function detailClick(e, id){
+    var b = e.target.closest("[data-act]"), r = recs[id];
+    if(!b || !r) return;
+    if(b.dataset.act === "edit"){
+      if($("detailDlg").open) $("detailDlg").close();
+      openEdit(r);
+    }else if(b.dataset.act === "copy"){
+      var text = [Data.mailName(r), r.street, Data.cityLine(r)].filter(Boolean).join("\n");
+      (navigator.clipboard ? navigator.clipboard.writeText(text) : Promise.reject())
+        .then(function(){ toast("Address copied."); }, function(){ toast("Couldn't copy on this device."); });
+    }
   }
 
   function ago(t){
@@ -317,20 +407,63 @@
     document.querySelector('input[name="y_what"][value="card"]').checked = true;
     $("yearDlg").showModal();
   }
+  // adds the year for everyone ticked; says how many were changed
+  function markYear(what, y){
+    var field = what === "card" ? "sent" : "chexYears", n = 0;
+    picked(what).forEach(function(r){
+      if(r[field].indexOf(y) >= 0) return;
+      r[field] = Data.addYear(r[field], y); stamp(r); n++;
+    });
+    if(n) changed();
+    return n;
+  }
   function wireYear(){
     $("yearForm").addEventListener("submit", function(e){
       e.preventDefault();
       var y = parseInt($("y_year").value, 10);
       if(!(y >= 1980 && y <= new Date().getFullYear() + 1)){ toast("Enter a year like " + Data.seasonYear() + "."); return; }
       var what = document.querySelector('input[name="y_what"]:checked').value;
-      var field = what === "card" ? "sent" : "chexYears", n = 0;
-      picked(what).forEach(function(r){
-        if(r[field].indexOf(y) >= 0) return;
-        r[field] = Data.addYear(r[field], y); stamp(r); n++;
-      });
+      var n = markYear(what, y);
       $("yearDlg").close();
-      if(n) changed();
       toast(n ? "Added " + y + " to " + n + " families." : "Everyone ticked already has " + y + ".");
+    });
+  }
+
+  // ---------------- this Christmas ----------------
+  function xmasHtml(){
+    var y = Data.seasonYear(), cards = picked("card"), chex = picked("chex");
+    var sent = cards.filter(function(r){ return r.sent.indexOf(y) >= 0; }).length;
+    var given = chex.filter(function(r){ return r.chexYears.indexOf(y) >= 0; }).length;
+    var got = live().filter(function(r){ return r.recvd.indexOf(y) >= 0; }).length;
+    function meter(a, b){ return '<div class="meter"><i style="width:' + (b ? Math.round(100 * a / b) : 0) + '%"></i></div>'; }
+    return '<div class="xmas"><h2>Christmas ' + y + "</h2>" +
+      '<div class="job r"><h3>Cards</h3><p>' + cards.length + " families ticked · " + sent + " marked sent for " + y + "</p>" + meter(sent, cards.length) +
+        '<div class="btns"><button class="btn" data-x="labels">Save address labels</button>' +
+        '<button class="btn" data-x="mark-card"' + (sent >= cards.length ? " disabled" : "") + ">Mark " + y + " as sent</button></div></div>" +
+      '<div class="job g"><h3>Chex</h3><p>' + chex.length + " families ticked · " + given + " marked given for " + y + "</p>" + meter(given, chex.length) +
+        '<div class="btns"><button class="btn" data-x="print-chex">Print the checklist</button>' +
+        '<button class="btn" data-x="mark-chex"' + (given >= chex.length ? " disabled" : "") + ">Mark " + y + " as given</button></div></div>" +
+      '<div class="job"><h3>Cards received</h3><p style="margin:0">' + got + " so far for " + y + ". To log one, open the family, choose Edit, and use the + " + y + " button beside Years received.</p></div>" +
+      "</div>";
+  }
+  function openXmas(){ $("xmasBody").innerHTML = xmasHtml(); $("xmasDlg").showModal(); }
+  function wireXmas(){
+    $("xmasBody").addEventListener("click", function(e){
+      var b = e.target.closest("[data-x]"); if(!b) return;
+      var x = b.dataset.x, y = Data.seasonYear();
+      if(x === "labels") exportLabels("card", "christmas-cards-" + y + ".csv", "Christmas card");
+      else if(x === "print-chex") printChex();
+      else{
+        var what = x === "mark-card" ? "card" : "chex", n = picked(what).length;
+        ask("Mark " + y + (what === "card" ? " as sent?" : " as given?"),
+          "Adds " + y + (what === "card" ? " to Years sent for the " + n + " families with Christmas card ticked." : " to Years Chex given for the " + n + " families with Chex ticked."),
+          { ok: "Mark " + y, cancel: true }).then(function(yes){
+          if(!yes) return;
+          var done = markYear(what, y);
+          $("xmasBody").innerHTML = xmasHtml();
+          toast("Added " + y + " to " + done + " families.");
+        });
+      }
     });
   }
 
@@ -436,6 +569,8 @@
   // ---------------- wiring ----------------
   function wire(){
     $("addBtn").onclick = function(){ openEdit(null); };
+    $("xmasBtn").onclick = openXmas;
+    $("xmasLabel").textContent = "Christmas " + Data.seasonYear();
     $("menuBtn").onclick = function(){ $("menuDlg").showModal(); };
     $("emptyImport").onclick = importOld;
     $("search").addEventListener("input", function(){ query = this.value; render(); });
@@ -450,10 +585,39 @@
     function rowClick(e){
       if(e.target.closest("a")) return;                     // a phone number: let it dial
       var row = e.target.closest("[data-id]");
-      if(row && recs[row.dataset.id]) openEdit(recs[row.dataset.id]);
+      if(row && recs[row.dataset.id]) showDetail(recs[row.dataset.id]);
     }
     $("cards").addEventListener("click", rowClick);
     $("rows").addEventListener("click", rowClick);
+    $("rows").addEventListener("dblclick", function(e){               // as in the Windows program
+      var row = e.target.closest("[data-id]");
+      if(row && recs[row.dataset.id]) openEdit(recs[row.dataset.id]);
+    });
+    $("panel").addEventListener("click", function(e){ detailClick(e, selId); });
+    $("detailBody").addEventListener("click", function(e){ detailClick(e, detailId); });
+
+    // the A-Z strip: tap or slide to jump to a letter
+    function azJump(e){
+      var box = $("az").getBoundingClientRect();
+      var el = document.elementFromPoint(box.left + box.width / 2, e.clientY);
+      var L = el && el.dataset && el.dataset.l;
+      var first = L && document.querySelector('#cards li[data-first="' + L + '"]');
+      if(first) first.scrollIntoView({ block: "start" });
+    }
+    $("az").addEventListener("pointerdown", function(e){ $("az").setPointerCapture(e.pointerId); azJump(e); });
+    $("az").addEventListener("pointermove", function(e){ if(e.buttons || e.pointerType === "touch") azJump(e); });
+
+    // computers: the short table with the side panel, or every column
+    function cols(){
+      document.body.classList.toggle("allcols", allCols);
+      $("colsBtn").classList.toggle("on", allCols);
+    }
+    cols();
+    $("colsBtn").onclick = function(){
+      allCols = !allCols;
+      try{ localStorage.setItem("allcols", allCols ? "1" : "0"); }catch(e){}
+      cols(); render(); layout();
+    };
 
     document.querySelector("#grid thead").addEventListener("click", function(e){
       var th = e.target.closest("th"); if(!th) return;
@@ -470,6 +634,7 @@
       else if(a === "print-chex") printChex();
       else if(a === "print-all") printAll();
       else if(a === "mark-year") openYear();
+      else if(a === "xmas") openXmas();
       else if(a === "sync") openSync();
       else if(a === "backup") backup();
       else if(a === "restore") restore();
@@ -484,7 +649,7 @@
       });
     });
 
-    wireEdit(); wireYear(); wireSync();
+    wireEdit(); wireYear(); wireXmas(); wireSync();
     window.addEventListener("resize", layout);
     $("ver").textContent = self.APP_VERSION;
   }
@@ -501,8 +666,18 @@
     });
   }
 
+  function snow(){
+    if(new Date().getMonth() !== 11 && location.search.indexOf("snow") < 0) return;
+    var h = "";
+    for(var i = 0; i < 16; i++){
+      h += '<i style="left:' + (i * 6.4 + Math.random() * 4).toFixed(1) + "%;animation-duration:" + (6 + Math.random() * 7).toFixed(1) +
+        "s;animation-delay:-" + (Math.random() * 12).toFixed(1) + 's"></i>';
+    }
+    $("snow").innerHTML = h; $("snow").hidden = false;
+  }
+
   function start(){
-    wire(); layout();
+    wire(); layout(); snow();
     Store.get("list").catch(function(){ return null; }).then(function(d){
       var early = all();                                   // anything added before the list finished loading
       setAll((d && d.records) || []);

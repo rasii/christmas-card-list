@@ -7,7 +7,7 @@ importScripts("version.js");
 var CACHE = "cardlist-" + self.APP_VERSION;
 var SHELL = [
   "./", "index.html", "app.css", "app.js", "data.js", "store.js", "sync.js", "version.js",
-  "manifest.webmanifest", "apple-touch-icon.png", "icon-192.png", "icon-512.png"
+  "manifest.webmanifest", "apple-touch-icon.png", "icon-192.png", "icon-512.png", "tree.png"
 ];
 
 self.addEventListener("install", function(e){

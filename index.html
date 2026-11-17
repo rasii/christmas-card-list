@@ -8,7 +8,7 @@
 <!-- home-screen behavior -->
 <meta name="apple-mobile-web-app-capable" content="yes">
 <meta name="mobile-web-app-capable" content="yes">
-<meta name="apple-mobile-web-app-status-bar-style" content="default">
+<meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
 <meta name="apple-mobile-web-app-title" content="Card List">
 <meta name="theme-color" content="#1f5c3a">
 <meta name="format-detection" content="telephone=no">
@@ -21,26 +21,39 @@
 <body>
 
 <header>
-  <div class="brand">
-    <h1>Christmas Card List</h1>
-    <p id="status">&nbsp;</p>
-  </div>
-  <div class="header-btns">
-    <button class="btn primary" id="addBtn">+ Add</button>
-    <button class="icon-btn" id="menuBtn" title="More" aria-label="More">
-      <svg viewBox="0 0 24 24" fill="currentColor"><circle cx="5" cy="12" r="1.8"/><circle cx="12" cy="12" r="1.8"/><circle cx="19" cy="12" r="1.8"/></svg>
-    </button>
+  <div class="snow" id="snow" hidden aria-hidden="true"></div>
+  <div class="bar">
+    <!-- the Windows program's own icon, pixel for pixel -->
+    <img class="tree" src="tree.png" width="32" height="32" alt="">
+    <div class="brand">
+      <h1>Christmas Card List</h1>
+      <p id="status">&nbsp;</p>
+    </div>
+    <div class="header-btns">
+      <button class="hbtn" id="xmasBtn" title="This Christmas">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><rect x="3.5" y="9" width="17" height="11.5" rx="1.5"/><path d="M2.5 9h19M12 9v11.5M12 9C10 9 7 8 7.5 5.5S11 5 12 9zM12 9c2 0 5-1 4.500-3.500S13 5 12 9z"/></svg>
+        <span id="xmasLabel">This Christmas</span>
+      </button>
+      <button class="hbtn add" id="addBtn" title="Add a family">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" aria-hidden="true"><path d="M12 5v14M5 12h14"/></svg>
+        <span>Add</span>
+      </button>
+      <button class="hbtn icon" id="menuBtn" title="More" aria-label="More">
+        <svg viewBox="0 0 24 24" fill="currentColor" aria-hidden="true"><circle cx="5" cy="12" r="1.8"/><circle cx="12" cy="12" r="1.8"/><circle cx="19" cy="12" r="1.8"/></svg>
+      </button>
+    </div>
   </div>
 </header>
 
 <div class="tools">
-  <input type="search" id="search" placeholder="Search name, kids, address, phone" autocomplete="off" autocorrect="off" spellcheck="false">
+  <input type="search" id="search" placeholder="Search name, notes, address, phone" autocomplete="off" autocorrect="off" spellcheck="false">
   <div class="chips" id="chips">
     <button data-f="all" class="on">All <span id="nAll"></span></button>
     <button data-f="card">Cards <span id="nCard"></span></button>
     <button data-f="chex">Chex <span id="nChex"></span></button>
     <button data-f="announce">Announcements <span id="nAnnounce"></span></button>
   </div>
+  <button class="btn small" id="colsBtn" title="Show every column, like the Windows program">All columns</button>
 </div>
 
 <main>
@@ -49,29 +62,48 @@
     <button class="btn primary" id="emptyImport" hidden>Import the old list…</button>
   </div>
 
-  <!-- phones: one card per family -->
-  <ul class="cards" id="cards"></ul>
+  <div class="layout">
+    <div class="listing">
+      <!-- phones: one card per family, under a heading for each letter -->
+      <ul class="cards" id="cards"></ul>
 
-  <!-- computers: the full table, like the Windows program -->
-  <table class="grid" id="grid">
-    <thead>
-      <tr>
-        <th data-s="name">Name</th>
-        <th data-s="kids">Kids</th>
-        <th data-s="address">Address</th>
-        <th data-s="phone">Phone</th>
-        <th data-s="card" class="c" title="Send Christmas card">Card</th>
-        <th data-s="sent">Years sent</th>
-        <th data-s="recvd">Years received</th>
-        <th data-s="chex" class="c" title="Give Chex">Chex</th>
-        <th data-s="chexYears">Years Chex</th>
-        <th data-s="announce" class="c" title="Send announcement">Ann.</th>
-        <th data-s="addrUpdated">Addr updated</th>
-      </tr>
-    </thead>
-    <tbody id="rows"></tbody>
-  </table>
+      <!-- computers: the table. The .k columns are the short view; the .x
+           columns are shown instead by "All columns" -->
+      <table class="grid" id="grid">
+        <thead>
+          <tr>
+            <th data-s="name">Name</th>
+            <th data-s="kids" class="x">Notes</th>
+            <th data-s="address">Address</th>
+            <th data-s="phone" class="x">Phone</th>
+            <th data-s="card" class="c" title="Send Christmas card">Card</th>
+            <th data-s="sent" class="k" id="thSent">Sent</th>
+            <th data-s="sent" class="x">Years sent</th>
+            <th data-s="recvd" class="k" id="thRecvd">Received</th>
+            <th data-s="recvd" class="x">Years received</th>
+            <th data-s="chex" class="c" title="Give Chex">Chex</th>
+            <th data-s="chexYears" class="x">Years Chex</th>
+            <th data-s="announce" class="c" title="Send announcement">Ann.</th>
+            <th data-s="addrUpdated" class="x">Addr updated</th>
+          </tr>
+        </thead>
+        <tbody id="rows"></tbody>
+      </table>
+    </div>
+
+    <!-- computers: the family that's selected -->
+    <aside class="panel" id="panel"></aside>
+  </div>
 </main>
+
+<!-- phones: jump to a letter -->
+<nav class="az" id="az" aria-label="Jump to a letter" hidden></nav>
+
+<!-- a family, to read (phones, and "All columns") -->
+<dialog id="detailDlg" class="sheet">
+  <div id="detailBody" class="detail"></div>
+  <div class="actions"><span class="grow"></span><button class="btn" data-close>Close</button></div>
+</dialog>
 
 <!-- add / edit a family -->
 <dialog id="editDlg" class="sheet">
@@ -80,7 +112,7 @@
     <div class="fields">
       <label>Last name <input id="f_last" autocapitalize="words"></label>
       <label>First name(s) <input id="f_first" autocapitalize="words"></label>
-      <label class="wide">Kids' names <input id="f_kids" autocapitalize="words"></label>
+      <label class="wide">Notes <input id="f_kids" autocapitalize="sentences"></label>
       <label class="wide">Address <input id="f_street" autocapitalize="words"></label>
       <label>City <input id="f_city" autocapitalize="words"></label>
       <div class="pair">
@@ -101,7 +133,7 @@
 
     <div class="fields">
       <label class="wide">Years sent
-        <span class="with-btn"><input id="f_sent" inputmode="numeric" placeholder="e.g. 2025, 2024"><button type="button" class="btn small yr" data-for="f_sent"></button></span>
+        <span class="with-btn"><input id="f_sent" inputmode="numeric" placeholder="2025, 2024"><button type="button" class="btn small yr" data-for="f_sent"></button></span>
       </label>
       <label class="wide">Years received
         <span class="with-btn"><input id="f_recvd" inputmode="numeric"><button type="button" class="btn small yr" data-for="f_recvd"></button></span>
@@ -115,22 +147,27 @@
       <button type="button" class="btn danger" id="deleteBtn">Delete</button>
       <span class="grow"></span>
       <button type="button" class="btn" id="cancelBtn">Cancel</button>
-      <button type="button" class="btn" id="saveAnotherBtn">Save &amp; add another</button>
+      <button type="button" class="btn" id="saveAnotherBtn">Save and add another</button>
       <button type="submit" class="btn primary" id="saveBtn">Save</button>
     </div>
   </form>
+</dialog>
+
+<!-- this Christmas: the December jobs in one place -->
+<dialog id="xmasDlg" class="sheet">
+  <div id="xmasBody"></div>
+  <div class="actions"><span class="grow"></span><button class="btn primary" data-close>Done</button></div>
 </dialog>
 
 <!-- the ⋯ menu -->
 <dialog id="menuDlg" class="sheet menu">
   <h2>Christmas Card List</h2>
   <h3>Each Christmas</h3>
-  <button data-a="labels-card">Card address labels <small>mail-merge file (CSV)</small></button>
-  <button data-a="print-chex">Chex checklist <small>print or save as PDF</small></button>
-  <button data-a="mark-year">Mark a year as sent… <small>for everyone ticked</small></button>
+  <button data-a="xmas">This Christmas <small>labels, the Chex checklist, marking the year</small></button>
+  <button data-a="mark-year">Mark a different year… <small>for everyone ticked</small></button>
   <h3>Other lists</h3>
   <button data-a="labels-announce">Announcement address labels <small>mail-merge file (CSV)</small></button>
-  <button data-a="print-all">Print the whole list <small>print or save as PDF</small></button>
+  <button data-a="print-all">Print the list <small>what's showing now; print or save as PDF</small></button>
   <h3>Your data</h3>
   <button data-a="sync">Sync… <small id="menuSync"></small></button>
   <button data-a="backup">Save a backup file</button>
@@ -143,7 +180,7 @@
 <!-- mark a year for everyone ticked -->
 <dialog id="yearDlg" class="sheet">
   <form id="yearForm" method="dialog">
-    <h2>Mark a year as sent</h2>
+    <h2>Mark a year</h2>
     <label>Year <input id="y_year" inputmode="numeric" maxlength="4" class="short"></label>
     <fieldset>
       <legend>Add this year to</legend>
@@ -204,7 +241,7 @@
 </dialog>
 
 <input type="file" id="filePick" hidden>
-<div id="toast" hidden></div>
+<div id="toast" popover="manual" hidden></div>
 
 <!-- what gets printed -->
 <div id="print"></div>

@@ -5,7 +5,8 @@
 //   id        made once, never changes
 //   t         when it was last changed (ms); the newer copy wins when syncing
 //   del       true = deleted (only id, t and del are kept)
-//   last, first, kids
+//   last, first, kids   (kids is shown as "Notes": it began as the kids'
+//                        names and came to hold any note about the family)
 //   street, city, state, zip
 //   home, cell
 //   addrUpdated   "YYYY-MM-DD" or ""

@@ -4,11 +4,15 @@ An address book of the families we send Christmas cards to, get them from,
 and make Chex mix for. It replaces the old Windows program (kept, unpublished,
 in `legacy/`).
 
-- Look up an address or phone number.
+- Look up an address or phone number. Tapping a family shows it to read
+  (copy the address, open it in Maps, call or text); changes are only made
+  through Edit, so nothing gets changed by accident.
 - Tick who gets a Christmas card, Chex, or an announcement, and keep the
   years each was sent, received and given.
-- Each Christmas: save the mail-merge file for address labels, print the
-  Chex checklist, and mark the year as sent for everyone ticked.
+- Each Christmas (the gift button, "This Christmas"): save the mail-merge
+  file for address labels, print the Chex checklist, and mark the year as
+  sent for everyone ticked.
+- On a computer, "All columns" shows the full table the Windows program had.
 
 Runs entirely in the browser. The list stays on the device unless Sync is
 turned on (⋯ › Sync), which keeps it the same on the phone and the computer
@@ -30,7 +34,8 @@ Edge can install it as an app from the address bar.
 | `worker/worker.js` | The sync server (a Cloudflare Worker with one R2 bucket): accounts, sync codes, one list per account |
 | `sw.js` | Service worker: the app opens from its cache (at once, and offline); a new version installs in the background |
 | `version.js` | Version string shown in the menu; bump it on every release (it also names the offline cache) |
-| `manifest.webmanifest`, `*.png` | Home-screen name and icons |
+| `manifest.webmanifest`, `apple-touch-icon.png`, `icon-*.png` | Home-screen name and icons |
+| `tree.png` | The tree in the header: the Windows program's icon, pixel for pixel |
 
 ## The data
 

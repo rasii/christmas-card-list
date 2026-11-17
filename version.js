@@ -1,2 +1,2 @@
 // Bump on every release. Shown in the menu; also names the offline cache.
-self.APP_VERSION = "1.0";
+self.APP_VERSION = "1.4";

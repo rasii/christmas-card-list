@@ -33,7 +33,7 @@
     });
   }
   function changed(){ save(); render(); Sync.schedule(1500); }
-  function setAll(list){ recs = {}; list.forEach(function(r){ recs[r.id] = r; }); }
+  function setAll(list){ recs = {}; list.forEach(function(r){ recs[r.id] = Data.norm(r); }); }
 
   // ---------------- small helpers ----------------
   var toastTimer = 0;
@@ -170,7 +170,7 @@
         '<td class="x nw">' + [r.home && esc(r.home) + " (H)", r.cell && esc(r.cell) + " (C)"].filter(Boolean).join("<br>") + "</td>" +
         tick("card") + '<td class="k">' + dots(y5, r.sent) + "</td>" + years("sent") +
         '<td class="k">' + dots(y5, r.recvd, "r") + "</td>" + years("recvd") +
-        tick("chex") + years("chexYears") +
+        tick("chex") + '<td class="x years" title="' + esc(Data.chexText(r)) + '">' + esc(Data.chexText(r)) + "</td>" +
         tick("announce") +
         '<td class="x nw">' + esc(Data.showDate(r.addrUpdated)) + "</td>" +
         "</tr>";
@@ -197,9 +197,13 @@
   // ---------------- a family, to read ----------------
   function detailHtml(r){
     var hist = recent(8), street = esc(r.street), city = esc(Data.cityLine(r));
-    function row(label, cls, have){
+    function row(label, cls, have, quarts){
       return '<tr class="' + cls + '"><td>' + label + "</td>" +
-        hist.map(function(y){ return "<td><i" + (have.indexOf(y) >= 0 ? ' class="y"' : "") + "></i></td>"; }).join("") + "</tr>";
+        hist.map(function(y){
+          if(have.indexOf(y) < 0) return "<td><i></i></td>";
+          var q = quarts && quarts.indexOf(y) >= 0;
+          return '<td><i class="y' + (q ? " q" : "") + '" title="' + y + (quarts ? (q ? ": quart" : ": gallon") : "") + '"></i></td>';
+        }).join("") + "</tr>";
     }
     function earlier(label, have){
       var e = have.filter(function(y){ return y < hist[0]; });
@@ -210,7 +214,9 @@
     var q = encodeURIComponent(Data.fullAddress(r));
     var maps = apple ? "https://maps.apple.com/?q=" + q : "https://www.google.com/maps/search/?api=1&query=" + q;
     var chex = r.chex || r.chexYears.length;
-    var more = earlier("Sent", r.sent) + earlier("Received", r.recvd) + (chex ? earlier("Chex", r.chexYears) : "");
+    var olderChex = Data.chexText({ chexYears: r.chexYears.filter(function(y){ return y < hist[0]; }), chexQuarts: r.chexQuarts });
+    var more = earlier("Sent", r.sent) + earlier("Received", r.recvd) +
+      (chex && olderChex ? "<div>Chex before " + hist[0] + ": " + esc(olderChex) + "</div>" : "");
     return "<h2>" + esc(Data.fullName(r)) + "</h2>" +
       (badges(r) ? '<div class="badges">' + badges(r) + "</div>" : "") +
       (r.kids ? '<div class="kids">' + esc(r.kids) + "</div>" : "") +
@@ -223,7 +229,9 @@
       (r.cell ? '<div class="row"><span class="num">' + esc(r.cell) + ' <small>cell</small></span><a class="btn small" href="tel:' + tel(r.cell) + '">Call</a><a class="btn small" href="sms:' + tel(r.cell) + '">Text</a></div>' : "") +
       "<h3>Last " + hist.length + " Christmases</h3>" +
       '<table class="hist"><tr><th></th>' + hist.map(function(y){ return "<th>" + yy(y) + "</th>"; }).join("") + "</tr>" +
-      row("Sent", "s", r.sent) + row("Received", "r", r.recvd) + (chex ? row("Chex", "g", r.chexYears) : "") + "</table>" +
+      row("Sent", "s", r.sent) + row("Received", "r", r.recvd) + (chex ? row("Chex", "g", r.chexYears, r.chexQuarts) : "") + "</table>" +
+      (chex ? '<div class="legend"><i class="y"></i> gallon <i class="y q"></i> quart' +
+        (r.chex ? " · making a " + Data.sizeName(r) + " this year" : "") + "</div>" : "") +
       (more ? '<div class="more">' + more + "</div>" : "") +
       '<div class="foot"><small>' + (r.addrUpdated ? "Address updated " + esc(Data.showDate(r.addrUpdated)) : "") + "</small>" +
       '<button class="btn primary" data-act="edit">Edit</button></div>';
@@ -292,7 +300,9 @@
     $("editTitle").textContent = isNew ? "New family" : Data.fullName(editing);
     FIELDS.forEach(function(k){ $("f_" + k).value = editing[k] || ""; });
     Data.YEARS.forEach(function(k){ $("f_" + k).value = Data.yearsText(editing[k]); });
+    $("f_chexYears").value = Data.chexText(editing);
     Data.FLAGS.forEach(function(k){ $("f_" + k).checked = !!editing[k]; });
+    document.querySelector('input[name="f_size"][value="' + (editing.chexSize === "Q" ? "Q" : "G") + '"]').checked = true;
     $("f_addrNow").checked = false; addrTouched = false;
     origAddr = addrOf(function(k){ return (editing[k] || "").trim(); });
     $("addrWhen").textContent = editing.addrUpdated ? "(last: " + Data.showDate(editing.addrUpdated) + ")" : "";
@@ -309,7 +319,10 @@
     var next = {};
     FIELDS.forEach(function(k){ next[k] = $("f_" + k).value.trim(); });
     Data.YEARS.forEach(function(k){ next[k] = Data.parseYears($("f_" + k).value); });
+    var cx = Data.parseChex($("f_chexYears").value);
+    next.chexYears = cx.years; next.chexQuarts = cx.quarts;
     Data.FLAGS.forEach(function(k){ next[k] = $("f_" + k).checked; });
+    next.chexSize = document.querySelector('input[name="f_size"]:checked').value;
     next.addrUpdated = $("f_addrNow").checked ? Data.today() : (editing.addrUpdated || "");
     if(!next.last && !next.first){ toast("Enter a name first."); $("f_last").focus(); return false; }
     var same = !isNew && Object.keys(next).every(function(k){ return JSON.stringify(next[k]) === JSON.stringify(editing[k]); });
@@ -343,8 +356,16 @@
     // "+ 2026" beside each list of years
     Array.prototype.forEach.call(document.querySelectorAll(".yr"), function(b){
       b.onclick = function(){
-        var inp = $(b.dataset.for);
-        inp.value = Data.yearsText(Data.addYear(Data.parseYears(inp.value), +b.dataset.y));
+        var inp = $(b.dataset.for), y = +b.dataset.y;
+        if(b.dataset.for === "f_chexYears"){
+          var cx = Data.parseChex(inp.value), q = document.querySelector('input[name="f_size"]:checked').value === "Q";
+          if(cx.years.indexOf(y) < 0) cx.years.unshift(y);
+          cx.quarts = cx.quarts.filter(function(x){ return x !== y; });
+          if(q) cx.quarts.push(y);
+          cx.years.sort(function(a, c){ return c - a; });
+          inp.value = Data.chexText({ chexYears: cx.years, chexQuarts: cx.quarts });
+        }
+        else inp.value = Data.yearsText(Data.addYear(Data.parseYears(inp.value), y));
       };
     });
     // changing the address ticks "updated today" (untick it if it was only a typo fix)
@@ -375,12 +396,19 @@
     setTimeout(function(){ window.print(); }, 50);
   }
 
+  // "30 gallons, 15 quarts"
+  function chexTotals(list){
+    var q = list.filter(function(r){ return r.chexSize === "Q"; }).length, g = list.length - q;
+    return [g ? g + " " + Data.sizeName("G", true, g) : "", q ? q + " " + Data.sizeName("Q", true, q) : ""].filter(Boolean).join(", ") || "none";
+  }
   function printChex(){
     var list = picked("chex");
     if(!list.length){ ask("Nothing to print", "Nobody has \"Chex\" ticked."); return; }
     printPage("<h1>Chex Mix " + Data.seasonYear() + "</h1>" +
-      '<p class="sub">' + list.length + " families</p>" +
-      '<div class="checklist">' + list.map(function(r){ return "<div><i></i><span>" + esc(Data.fullName(r)) + "</span></div>"; }).join("") + "</div>");
+      '<p class="sub">' + list.length + " families · " + chexTotals(list) + "</p>" +
+      '<div class="checklist">' + list.map(function(r){
+        return "<div><i></i><span>" + esc(Data.fullName(r)) + " <b>(" + (r.chexSize === "Q" ? "Q" : "G") + ")</b></span></div>";
+      }).join("") + "</div>");
   }
 
   function printAll(){
@@ -394,7 +422,7 @@
         return "<tr><td><b>" + esc(Data.fullName(r)) + "</b>" + (r.kids ? " (" + esc(r.kids) + ")" : "") +
           (r.street ? "<br>" + esc(r.street) : "") + (Data.cityLine(r) ? "<br>" + esc(Data.cityLine(r)) : "") + "</td>" +
           "<td>" + [r.home && esc(r.home) + " (H)", r.cell && esc(r.cell) + " (C)"].filter(Boolean).join("<br>") + "</td>" +
-          '<td class="t">' + (r.card ? "✓" : "") + '</td><td class="t">' + (r.chex ? "✓" : "") + "</td>" +
+          '<td class="t">' + (r.card ? "✓" : "") + '</td><td class="t">' + (r.chex ? "✓ (" + (r.chexSize === "Q" ? "Q" : "G") + ")" : "") + "</td>" +
           "<td>" + esc(Data.yearsText(r.sent)) + "</td><td>" + esc(Data.yearsText(r.recvd)) + "</td></tr>";
       }).join("") + "</tbody></table>");
   }
@@ -412,7 +440,9 @@
     var field = what === "card" ? "sent" : "chexYears", n = 0;
     picked(what).forEach(function(r){
       if(r[field].indexOf(y) >= 0) return;
-      r[field] = Data.addYear(r[field], y); stamp(r); n++;
+      r[field] = Data.addYear(r[field], y);
+      if(what === "chex" && r.chexSize === "Q") r.chexQuarts = (r.chexQuarts || []).concat([y]);
+      stamp(r); n++;
     });
     if(n) changed();
     return n;
@@ -440,7 +470,7 @@
       '<div class="job r"><h3>Cards</h3><p>' + cards.length + " families ticked · " + sent + " marked sent for " + y + "</p>" + meter(sent, cards.length) +
         '<div class="btns"><button class="btn" data-x="labels">Save address labels</button>' +
         '<button class="btn" data-x="mark-card"' + (sent >= cards.length ? " disabled" : "") + ">Mark " + y + " as sent</button></div></div>" +
-      '<div class="job g"><h3>Chex</h3><p>' + chex.length + " families ticked · " + given + " marked given for " + y + "</p>" + meter(given, chex.length) +
+      '<div class="job g"><h3>Chex</h3><p>' + chex.length + " families ticked (" + chexTotals(chex) + ") · " + given + " marked given for " + y + "</p>" + meter(given, chex.length) +
         '<div class="btns"><button class="btn" data-x="print-chex">Print the checklist</button>' +
         '<button class="btn" data-x="mark-chex"' + (given >= chex.length ? " disabled" : "") + ">Mark " + y + " as given</button></div></div>" +
       '<div class="job"><h3>Cards received</h3><p style="margin:0">' + got + " so far for " + y + ". To log one, open the family, choose Edit, and use the + " + y + " button beside Years received.</p></div>" +
@@ -472,7 +502,7 @@
     var res = Data.importXml(text), added = 0, here = 0, gone = 0;
     res.records.forEach(function(r){
       var mine = recs[r.id];
-      if(!mine){ recs[r.id] = r; added++; }
+      if(!mine){ recs[r.id] = Data.norm(r); added++; }
       else if(mine.del) gone++;
       else here++;
     });
@@ -512,6 +542,8 @@
           Data.TEXT.forEach(function(k){ b[k] = typeof r[k] === "string" ? r[k] : ""; });
           Data.YEARS.forEach(function(k){ b[k] = Data.parseYears((Array.isArray(r[k]) ? r[k] : []).join(",")); });
           Data.FLAGS.forEach(function(k){ b[k] = !!r[k]; });
+          b.chexSize = r.chexSize === "Q" ? "Q" : "G";
+          b.chexQuarts = Array.isArray(r.chexQuarts) ? r.chexQuarts.filter(function(x){ return b.chexYears.indexOf(x) >= 0; }) : [];
           b.id = r.id; b.t = prev ? prev.t : 0;
           recs[r.id] = stamp(b); keep[r.id] = 1;
         });

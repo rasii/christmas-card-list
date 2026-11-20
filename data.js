@@ -11,7 +11,11 @@
 //   home, cell
 //   addrUpdated   "YYYY-MM-DD" or ""
 //   sent, recvd, chexYears   years, newest first
+//   chexQuarts    the years in chexYears when a quart was given; every
+//                 other Chex year was a gallon (older lists have no sizes,
+//                 so all their years count as gallons)
 //   card, chex, announce     the three "send" checkboxes
+//   chexSize      "G" or "Q": the size to make this year, when chex is ticked
 window.Data = (function(){
   "use strict";
 
@@ -24,7 +28,39 @@ window.Data = (function(){
     TEXT.forEach(function(k){ r[k] = ""; });
     YEARS.forEach(function(k){ r[k] = []; });
     FLAGS.forEach(function(k){ r[k] = false; });
+    r.chexQuarts = []; r.chexSize = "G";
     return r;
+  }
+
+  // fills in what older copies of a record don't have (all Chex were gallons)
+  function norm(r){
+    if(!r || r.del) return r;
+    if(r.chexSize !== "Q") r.chexSize = "G";
+    var q = Array.isArray(r.chexQuarts) ? r.chexQuarts : [];
+    r.chexQuarts = q.filter(function(y){ return (r.chexYears || []).indexOf(y) >= 0; });
+    return r;
+  }
+
+  // Chex years as typed in the edit form: "2026 Q, 2025, 2024" (Q = quart;
+  // a year on its own, or with G, is a gallon) -> {years, quarts}
+  function parseChex(s){
+    var years = [], quarts = [], re = /(\d+)\s*\(?\s*([qg])?/gi, m;
+    while((m = re.exec(String(s || "")))){
+      var y = parseInt(m[1], 10);
+      if(!y || years.indexOf(y) >= 0) continue;
+      years.push(y);
+      if(m[2] && m[2].toLowerCase() === "q") quarts.push(y);
+    }
+    years.sort(function(a, b){ return b - a; });
+    return { years: years, quarts: quarts };
+  }
+  function chexText(r){
+    var q = r.chexQuarts || [];
+    return (r.chexYears || []).map(function(y){ return q.indexOf(y) >= 0 ? y + " Q" : String(y); }).join(", ");
+  }
+  function sizeName(r, plural, n){
+    var q = r === "Q" || (r && r.chexSize === "Q");
+    return (q ? "quart" : "gallon") + (plural && n !== 1 ? "s" : "");
   }
 
   function newId(){
@@ -130,6 +166,7 @@ window.Data = (function(){
         sent: years(n, "yearsSent"), recvd: years(n, "yearsReceived"), chexYears: years(n, "yearsChex"),
         card: !!parseInt(attr(n, "sendChristmasCard"), 10),
         chex: !!parseInt(attr(n, "giveChex"), 10),
+        chexSize: "G", chexQuarts: [],
         announce: !!parseInt(attr(n, "sendAnnouncement"), 10)
       };
       var key = hash([r.last, r.first, r.street, r.zip].join("|").toLowerCase());
@@ -189,7 +226,8 @@ window.Data = (function(){
 
   return {
     TEXT: TEXT, YEARS: YEARS, FLAGS: FLAGS,
-    blank: blank, newId: newId,
+    blank: blank, newId: newId, norm: norm,
+    parseChex: parseChex, chexText: chexText, sizeName: sizeName,
     parseYears: parseYears, yearsText: yearsText, yearsShort: yearsShort, addYear: addYear, seasonYear: seasonYear,
     fullName: fullName, mailName: mailName, cityLine: cityLine, fullAddress: fullAddress,
     today: today, showDate: showDate, byName: byName,

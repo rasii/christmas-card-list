@@ -127,7 +127,13 @@
     <fieldset>
       <legend>Send</legend>
       <label class="check"><input type="checkbox" id="f_card"> <span>Christmas card</span></label>
-      <label class="check"><input type="checkbox" id="f_chex"> <span>Chex</span></label>
+      <span class="chex-pick">
+        <label class="check"><input type="checkbox" id="f_chex"> <span>Chex</span></label>
+        <span class="seg" role="radiogroup" aria-label="Chex size">
+          <label><input type="radio" name="f_size" value="G"><span>Gallon</span></label>
+          <label><input type="radio" name="f_size" value="Q"><span>Quart</span></label>
+        </span>
+      </span>
       <label class="check"><input type="checkbox" id="f_announce"> <span>Announcement</span></label>
     </fieldset>
 
@@ -138,8 +144,8 @@
       <label class="wide">Years received
         <span class="with-btn"><input id="f_recvd" inputmode="numeric"><button type="button" class="btn small yr" data-for="f_recvd"></button></span>
       </label>
-      <label class="wide">Years Chex given
-        <span class="with-btn"><input id="f_chexYears" inputmode="numeric"><button type="button" class="btn small yr" data-for="f_chexYears"></button></span>
+      <label class="wide">Years Chex given <small>(Q after a year = quart; otherwise a gallon)</small>
+        <span class="with-btn"><input id="f_chexYears" placeholder="2025, 2024 Q"><button type="button" class="btn small yr" data-for="f_chexYears"></button></span>
       </label>
     </div>
 

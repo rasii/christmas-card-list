@@ -260,6 +260,21 @@ main { padding: 0 0 calc(env(safe-area-inset-bottom) + 40px); }
 .detail .hist tr.s i.y { background: var(--green); box-shadow: none; }
 .detail .hist tr.r i.y { background: var(--red); box-shadow: none; }
 .detail .hist tr.g i.y { background: var(--gold); box-shadow: none; }
+/* a quart: half a gold dot */
+.detail .hist tr.g i.y.q, .detail .legend i.y.q { background: linear-gradient(90deg, var(--gold) 50%, transparent 50%); box-shadow: inset 0 0 0 1.5px var(--gold); }
+.detail .legend { color: var(--dim); font-size: 12.5px; margin-top: 6px; display: flex; align-items: center; gap: 5px; flex-wrap: wrap; }
+.detail .legend i { display: inline-block; width: 11px; height: 11px; border-radius: 50%; background: var(--gold); }
+.detail .legend i.q { margin-left: 8px; }
+
+/* edit form: Chex, then Gallon / Quart */
+.chex-pick { display: inline-flex; align-items: center; gap: 10px; flex-wrap: wrap; }
+.seg { display: inline-flex; border: 1px solid var(--line); border-radius: 9px; overflow: hidden; margin-bottom: 10px; }
+.seg label { margin: 0; cursor: pointer; }
+.seg input { position: absolute; opacity: 0; pointer-events: none; }
+.seg span { display: block; padding: 4px 11px; font-size: 14px; color: var(--ink); }
+.seg input:checked + span { background: var(--gold); color: #fff; font-weight: 600; }
+.seg input:focus-visible + span { outline: 2px solid var(--green); outline-offset: -2px; }
+dialog label small { color: var(--dim); font-size: 12px; }
 .detail .more { color: var(--dim); font-size: 13px; margin-top: 8px; line-height: 1.5; }
 .detail .foot { display: flex; align-items: center; gap: 8px; margin-top: 18px; }
 .detail .foot small { color: var(--dim); flex: 1; }
@@ -349,6 +364,7 @@ legend { font-size: 13px; color: var(--dim); padding: 0 6px; }
     padding: 5pt 2pt; border-bottom: 0.5pt solid #999; font-size: 11.5pt;
   }
   .checklist i { flex: none; width: 12pt; height: 12pt; border: 1pt solid #000; }
+  .checklist b { font-weight: normal; color: #444; }
 
   table.full { width: 100%; border-collapse: collapse; font-size: 8.5pt; }
   table.full th, table.full td { border: 0.5pt solid #888; padding: 3pt 5pt; text-align: left; vertical-align: top; }
